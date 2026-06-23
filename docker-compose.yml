@@ -2,13 +2,54 @@ services:
   app:
     image: ghcr.io/sandemoit/algo-apriori:latest
     container_name: apriori_dev
+
     env_file:
       - stack.env
+
+    environment:
+      # PHP production
+      PHP_DATE_TIMEZONE: Asia/Jakarta
+      PHP_OPCACHE_ENABLE: "1"
+      PHP_OPCACHE_VALIDATE_TIMESTAMPS: "0"
+
+      # Health check Laravel
+      HEALTHCHECK_PATH: /up
+
+      # ServerSideUp Laravel automation
+      AUTORUN_ENABLED: "true"
+
+      # Jalankan cache Laravel satu per satu agar eksplisit
+      AUTORUN_LARAVEL_OPTIMIZE: "false"
+      AUTORUN_LARAVEL_CONFIG_CACHE: "true"
+      AUTORUN_LARAVEL_ROUTE_CACHE: "true"
+      AUTORUN_LARAVEL_VIEW_CACHE: "true"
+      AUTORUN_LARAVEL_EVENT_CACHE: "true"
+
+      # Sudah dibuat di Dockerfile
+      AUTORUN_LARAVEL_STORAGE_LINK: "false"
+
+      # Database migration
+      AUTORUN_LARAVEL_MIGRATION: "true"
+      AUTORUN_LARAVEL_MIGRATION_FORCE: "true"
+      AUTORUN_LARAVEL_MIGRATION_MODE: default
+      AUTORUN_LARAVEL_MIGRATION_SEED: "false"
+      AUTORUN_LARAVEL_MIGRATION_TIMEOUT: "60"
+
     expose:
       - "8080"
+
+    # Pertahankan file upload ketika container diganti
+    volumes:
+      - apriori_storage:/var/www/html/storage/app
+
     restart: unless-stopped
+
     networks:
       - sandemo-network
+
+volumes:
+  apriori_storage:
+    name: apriori_storage
 
 networks:
   sandemo-network:
