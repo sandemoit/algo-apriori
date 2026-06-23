@@ -1,13 +1,11 @@
 services:
   app:
-    image: ghcr.io/sandemoit/digital-store:dev
-    container_name: sanstore_dev
+    image: ghcr.io/sandemoit/algo-apriori:latest
+    container_name: apriori_dev
     env_file:
       - stack.env
     expose:
       - "8080"
-    volumes:
-      - /opt/sandemo/apps/sanstore/storage:/var/www/html/storage
     restart: unless-stopped
     networks:
       - sandemo-network

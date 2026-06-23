@@ -1,0 +1,45 @@
+# Git dan editor
+.git
+.github
+.idea
+.vscode
+
+# AI/development metadata
+.agents
+.codex
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Dependencies host
+node_modules
+vendor
+
+# Generated frontend assets
+public/build
+public/hot
+
+# Laravel runtime files
+bootstrap/cache/*.php
+storage/logs/*
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+
+# Local database
+database/*.sqlite
+database/*.sqlite-*
+
+# Testing dan documentation
+tests
+docs
+PRD.md
+phpunit.xml
+.phpunit.result.cache
+
+# Logs
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*

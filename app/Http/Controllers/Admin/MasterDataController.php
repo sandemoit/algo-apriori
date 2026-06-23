@@ -6,7 +6,6 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\AdditionalItem;
-use App\Models\CakeFlavor;
 use App\Models\CakeShape;
 use App\Models\CakeSize;
 use App\Models\StoreSetting;
@@ -17,11 +16,56 @@ use Inertia\Response;
 
 class MasterDataController extends Controller
 {
-    public function index(): Response { return Inertia::render('admin/settings', ['sizes' => CakeSize::query()->orderBy('sort_order')->get(), 'shapes' => CakeShape::query()->orderBy('sort_order')->get(), 'flavors' => CakeFlavor::query()->orderBy('type')->orderBy('sort_order')->get(), 'items' => AdditionalItem::query()->orderBy('sort_order')->get(), 'settings' => StoreSetting::query()->first()]); }
-    public function store(Request $request, string $resource): RedirectResponse { $model = $this->model($resource); $model::query()->create($this->validated($request, $resource)); return back()->with('success', 'Master data ditambahkan.'); }
-    public function update(Request $request, string $resource, int $id): RedirectResponse { $model = $this->model($resource); $model::query()->findOrFail($id)->update($this->validated($request, $resource)); return back()->with('success', 'Master data diperbarui.'); }
-    public function deactivate(string $resource, int $id): RedirectResponse { $model = $this->model($resource); $model::query()->findOrFail($id)->update(['is_active' => false]); return back()->with('success', 'Master data dinonaktifkan.'); }
-    public function updateSettings(Request $request): RedirectResponse { $data = $request->validate(['store_name'=>['required','string','max:100'],'store_phone'=>['required','string','max:20'],'admin_whatsapp'=>['required','string','max:20'],'store_address'=>['nullable','string'],'customer_order_template'=>['required','string'],'admin_order_template'=>['required','string'],'public_order_enabled'=>['boolean'],'minimum_pickup_days'=>['required','integer','min:0','max:30'],'opening_time'=>['required','date_format:H:i'],'closing_time'=>['required','date_format:H:i']]); StoreSetting::query()->firstOrFail()->update($data); return back()->with('success','Pengaturan toko diperbarui.'); }
-    /** @return class-string */ private function model(string $resource): string { return match ($resource) { 'sizes' => CakeSize::class, 'shapes' => CakeShape::class, 'flavors' => CakeFlavor::class, 'items' => AdditionalItem::class, default => abort(404) }; }
-    /** @return array<string,mixed> */ private function validated(Request $request, string $resource): array { return match ($resource) { 'sizes' => $request->validate(['name'=>['required','string','max:50'],'base_price'=>['required','numeric','min:0'],'is_active'=>['boolean'],'sort_order'=>['integer','min:0']]), 'shapes' => $request->validate(['name'=>['required','string','max:50'],'price_adjustment'=>['required','numeric','min:0'],'is_active'=>['boolean'],'sort_order'=>['integer','min:0']]), 'flavors' => $request->validate(['name'=>['required','string','max:50'],'type'=>['required','in:base,filling'],'price_adjustment'=>['required','numeric','min:0'],'is_active'=>['boolean'],'sort_order'=>['integer','min:0']]), 'items' => $request->validate(['name'=>['required','string','max:50'],'price'=>['required','numeric','min:0'],'unit'=>['required','string','max:20'],'is_active'=>['boolean'],'sort_order'=>['integer','min:0']]) }; }
+    public function index(): Response
+    {
+        return Inertia::render('admin/settings', ['sizes' => CakeSize::query()->orderBy('sort_order')->get(), 'shapes' => CakeShape::query()->orderBy('sort_order')->get(), 'items' => AdditionalItem::query()->orderBy('sort_order')->get(), 'settings' => StoreSetting::query()->first() ?? new StoreSetting(StoreSetting::defaults())]);
+    }
+
+    public function store(Request $request, string $resource): RedirectResponse
+    {
+        $model = $this->model($resource);
+        $model::query()->create($this->validated($request, $resource));
+
+        return back()->with('success', 'Master data ditambahkan.');
+    }
+
+    public function update(Request $request, string $resource, int $id): RedirectResponse
+    {
+        $model = $this->model($resource);
+        $model::query()->findOrFail($id)->update($this->validated($request, $resource));
+
+        return back()->with('success', 'Master data diperbarui.');
+    }
+
+    public function deactivate(string $resource, int $id): RedirectResponse
+    {
+        $model = $this->model($resource);
+        $model::query()->findOrFail($id)->update(['is_active' => false]);
+
+        return back()->with('success', 'Master data dinonaktifkan.');
+    }
+
+    public function updateSettings(Request $request): RedirectResponse
+    {
+        $data = $request->validate(['store_name' => ['required', 'string', 'max:100'], 'store_phone' => ['required', 'string', 'max:20'], 'admin_whatsapp' => ['required', 'string', 'max:20'], 'store_address' => ['nullable', 'string'], 'customer_order_template' => ['required', 'string'], 'admin_order_template' => ['required', 'string'], 'public_order_enabled' => ['boolean'], 'minimum_pickup_days' => ['required', 'integer', 'min:0', 'max:30'], 'opening_time' => ['required', 'date_format:H:i'], 'closing_time' => ['required', 'date_format:H:i'], 'delivery_fee' => ['required', 'numeric', 'min:0']]);
+        StoreSetting::query()->firstOrCreate([], StoreSetting::defaults())->update($data);
+
+        return back()->with('success', 'Pengaturan toko diperbarui.');
+    }
+
+    /** @return class-string */
+    private function model(string $resource): string
+    {
+        return match ($resource) {
+            'sizes' => CakeSize::class, 'shapes' => CakeShape::class, 'items' => AdditionalItem::class, default => abort(404)
+        };
+    }
+
+    /** @return array<string,mixed> */
+    private function validated(Request $request, string $resource): array
+    {
+        return match ($resource) {
+            'sizes' => $request->validate(['name' => ['required', 'string', 'max:50'], 'base_price' => ['required', 'numeric', 'min:0'], 'is_active' => ['boolean'], 'sort_order' => ['integer', 'min:0']]), 'shapes' => $request->validate(['name' => ['required', 'string', 'max:50'], 'price_adjustment' => ['required', 'numeric', 'min:0'], 'is_active' => ['boolean'], 'sort_order' => ['integer', 'min:0']]), 'items' => $request->validate(['name' => ['required', 'string', 'max:50'], 'price' => ['required', 'numeric', 'min:0'], 'unit' => ['required', 'string', 'max:20'], 'is_active' => ['boolean'], 'sort_order' => ['integer', 'min:0']])
+        };
+    }
 }

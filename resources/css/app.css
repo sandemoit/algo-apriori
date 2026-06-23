@@ -132,6 +132,25 @@
     --sidebar-ring: oklch(0.439 0 0);
 }
 
+.order-date-range-picker {
+    --rdp-accent-color: #2563eb;
+    --rdp-accent-background-color: #dbeafe;
+    --rdp-range_middle-background-color: #dbeafe;
+    --rdp-range_middle-color: #0f172a;
+    --rdp-range_start-color: #ffffff;
+    --rdp-range_end-color: #ffffff;
+}
+
+.dark .order-date-range-picker {
+    --rdp-accent-color: #475569;
+    --rdp-accent-background-color: #334155;
+    --rdp-range_middle-background-color: #334155;
+    --rdp-range_middle-color: #f8fafc;
+    --rdp-range_start-color: #f8fafc;
+    --rdp-range_end-color: #f8fafc;
+    --rdp-selected-border: 2px solid #94a3b8;
+}
+
 @layer base {
     * {
         @apply border-border;

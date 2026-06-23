@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1.7
+
 #############################
 # 0) Shared PHP base
 #############################
@@ -7,6 +9,7 @@ USER root
 
 WORKDIR /var/www/html
 
+# Hapus jika aplikasi tidak benar-benar memakai GD.
 RUN install-php-extensions gd
 
 
@@ -23,36 +26,51 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 COPY composer.json composer.lock ./
 
+# Dependency di-cache berdasarkan composer.json dan composer.lock.
+# Autoloader dibuat nanti setelah source code tersedia.
 RUN --mount=type=cache,target=/tmp/composer-cache \
     COMPOSER_CACHE_DIR=/tmp/composer-cache \
     composer install \
     --no-dev \
     --no-interaction \
     --prefer-dist \
-    --optimize-autoloader \
-    --classmap-authoritative \
-    --no-scripts
+    --no-progress \
+    --no-scripts \
+    --no-autoloader
 
 
 #############################
 # 2) Frontend assets
-# PHP diperlukan oleh Wayfinder saat Vite build
 #############################
 FROM php-base AS frontend
 
 USER root
+
 WORKDIR /app
 
-RUN apk add --no-cache nodejs npm
+RUN apk add --no-cache nodejs npm \
+    && node --version \
+    && npm --version
+
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 COPY package.json package-lock.json ./
 
+# Aktifkan jika .npmrc hanya berisi konfigurasi.
+# Jangan COPY jika berisi registry token.
+# COPY .npmrc ./
+
 RUN --mount=type=cache,target=/root/.npm \
     npm ci \
+    --include=dev \
     --no-audit \
     --no-fund
 
-# Source Laravel dibutuhkan oleh `php artisan wayfinder:generate`
+COPY --from=vendor /app/vendor ./vendor
+
+# Source Laravel yang diperlukan Composer, Artisan dan Wayfinder.
+COPY artisan composer.json composer.lock ./
+
 COPY app ./app
 COPY bootstrap ./bootstrap
 COPY config ./config
@@ -61,24 +79,23 @@ COPY public ./public
 COPY resources ./resources
 COPY routes ./routes
 
-COPY artisan composer.json composer.lock ./
-COPY tsconfig.json ./
-COPY vite.config.* ./
-COPY components.json ./
-
-# Vendor Composer berisi Laravel dan package Wayfinder
-COPY --from=vendor /app/vendor ./vendor
+COPY tsconfig.json components.json vite.config.ts ./
 
 RUN mkdir -p \
+    storage/app/public \
     storage/framework/cache/data \
     storage/framework/sessions \
     storage/framework/views \
     storage/logs \
     bootstrap/cache
 
-RUN php artisan package:discover --ansi
-
-RUN npm run build
+# Source code sudah tersedia, jadi autoloader App dapat dibuat dengan benar.
+RUN composer dump-autoload \
+    --no-dev \
+    --optimize \
+    --no-scripts \
+    && php artisan package:discover --ansi \
+    && npm run build
 
 
 #############################
@@ -90,9 +107,19 @@ USER root
 
 WORKDIR /var/www/html
 
-COPY . .
+# Copy hanya file yang dibutuhkan runtime.
+# Jangan memakai COPY . .
+COPY artisan composer.json composer.lock ./
 
-COPY --from=vendor /app/vendor ./vendor
+COPY app ./app
+COPY bootstrap ./bootstrap
+COPY config ./config
+COPY database ./database
+COPY public ./public
+COPY resources ./resources
+COPY routes ./routes
+
+COPY --from=frontend /app/vendor ./vendor
 COPY --from=frontend /app/public/build ./public/build
 
 RUN mkdir -p \
@@ -102,15 +129,16 @@ RUN mkdir -p \
     storage/framework/views \
     storage/logs \
     bootstrap/cache \
-    && ln -sfn \
-    /var/www/html/storage/app/public \
-    /var/www/html/public/storage \
+    && rm -rf public/storage \
+    && ln -s ../storage/app/public public/storage \
+    && php artisan package:discover --ansi \
     && chown -R www-data:www-data \
     storage \
     bootstrap/cache \
-    && chown -h www-data:www-data \
-    public/storage \
-    && rm -f /usr/local/bin/composer /usr/bin/composer
+    && chown -h www-data:www-data public/storage \
+    && rm -f \
+    /usr/local/bin/composer \
+    /usr/bin/composer
 
 USER www-data
 

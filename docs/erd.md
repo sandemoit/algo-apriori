@@ -5,7 +5,7 @@
 ```mermaid
 erDiagram
     USERS ||--o{ ORDERS : "creates manual order"
-    USERS ||--o{ ORDERS : "completes"
+    USERS ||--o{ ORDERS : "completes and confirms payment"
     USERS ||--o{ ORDER_STATUS_HISTORIES : "changes status"
     USERS ||--o{ APRIORI_ANALYSIS_RUNS : "executes"
 
@@ -13,8 +13,6 @@ erDiagram
 
     CAKE_SIZES ||--o{ ORDERS : "selected size"
     CAKE_SHAPES ||--o{ ORDERS : "selected shape"
-    CAKE_FLAVORS ||--o{ ORDERS : "selected base flavor"
-    CAKE_FLAVORS ||--o{ ORDERS : "selected filling flavor"
 
     ORDERS ||--o{ ORDER_ADDITIONAL_ITEMS : "contains"
     ADDITIONAL_ITEMS ||--o{ ORDER_ADDITIONAL_ITEMS : "selected in"
@@ -65,19 +63,9 @@ erDiagram
         timestamp updated_at
     }
 
-    CAKE_FLAVORS {
-        bigint id PK
-        varchar name
-        varchar type
-        decimal price_adjustment
-        boolean is_active
-        integer sort_order
-        timestamp created_at
-        timestamp updated_at
-    }
-
     ADDITIONAL_ITEMS {
         bigint id PK
+        varchar code UK
         varchar name
         decimal price
         varchar unit
@@ -94,14 +82,13 @@ erDiagram
         bigint customer_id FK
         bigint cake_size_id FK
         bigint cake_shape_id FK
-        bigint base_flavor_id FK
-        bigint filling_flavor_id FK
         bigint created_by FK
         bigint completed_by FK
+        bigint paid_by FK
 
         varchar source
         datetime ordered_at
-        datetime pickup_at
+        datetime fulfillment_at
         varchar fulfillment_method
 
         varchar customer_name_snapshot
@@ -112,8 +99,6 @@ erDiagram
 
         varchar cake_size_snapshot
         varchar cake_shape_snapshot
-        varchar base_flavor_snapshot
-        varchar filling_flavor_snapshot
 
         varchar cake_text
         varchar age_text
@@ -127,9 +112,11 @@ erDiagram
         decimal grand_total
 
         varchar status
+        varchar payment_status
         text customer_notes
         text admin_notes
         datetime completed_at
+        datetime paid_at
 
         timestamp created_at
         timestamp updated_at
@@ -371,10 +358,10 @@ Jangan menggunakan URL seperti:
 Gunakan satu kolom datetime:
 
 ```text
-pickup_at
+fulfillment_at
 ```
 
-Lebih baik daripada memisahkan `pickup_date` dan `pickup_time`, karena:
+Lebih baik daripada memisahkan tanggal dan jam penerimaan, karena:
 
 - Filtering lebih sederhana.
 - Sorting lebih sederhana.
@@ -384,7 +371,7 @@ Lebih baik daripada memisahkan `pickup_date` dan `pickup_time`, karena:
 Contoh query:
 
 ```sql
-WHERE pickup_at BETWEEN '2026-06-22 00:00:00'
+WHERE fulfillment_at BETWEEN '2026-06-22 00:00:00'
                     AND '2026-06-22 23:59:59'
 ```
 
@@ -566,8 +553,7 @@ enum OrderSource: string
 enum FulfillmentMethod: string
 {
     case Pickup = 'pickup';
-    case Delivery = 'delivery';
-    case Cod = 'cod';
+    case Delivery = 'delivery'; // Delivery / COD, dibayar saat serah terima
 }
 ```
 
@@ -621,7 +607,7 @@ Filter transaksi:
 ```text
 orders.status = completed
 orders.deleted_at IS NULL
-pickup_at berada dalam periode analisis
+fulfillment_at berada dalam periode analisis
 ```
 
 Contoh basket:
@@ -731,16 +717,16 @@ UNIQUE(public_token)
 UNIQUE(order_number)
 INDEX(customer_id)
 INDEX(ordered_at)
-INDEX(pickup_at)
+INDEX(fulfillment_at)
 INDEX(status)
-INDEX(status, pickup_at)
+INDEX(status, fulfillment_at)
 INDEX(source)
 ```
 
 Composite index penting:
 
 ```text
-INDEX(status, pickup_at)
+INDEX(status, fulfillment_at)
 ```
 
 Digunakan untuk query:

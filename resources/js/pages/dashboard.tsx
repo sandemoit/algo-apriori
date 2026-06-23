@@ -1,21 +1,14 @@
 import { Head } from '@inertiajs/react';
-import { DashboardOverview } from '@/components/dashboard-overview';
-import { dashboard } from '@/routes';
+import type { ComponentProps } from 'react';
+import { DashboardOperational } from '@/components/admin/dashboard-operational';
 
-export default function Dashboard() {
+export default function Dashboard(
+    props: ComponentProps<typeof DashboardOperational>,
+) {
     return (
         <>
             <Head title="Dashboard" />
-            <DashboardOverview />
+            <DashboardOperational {...props} />
         </>
     );
 }
-
-Dashboard.layout = {
-    breadcrumbs: [
-        {
-            title: 'Dashboard',
-            href: dashboard(),
-        },
-    ],
-};

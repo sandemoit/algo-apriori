@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class AdditionalItem extends Model
 {
-    protected $fillable = ['name', 'price', 'unit', 'is_active', 'sort_order'];
+    protected $fillable = ['code', 'name', 'price', 'unit', 'is_active', 'sort_order'];
 
     protected function casts(): array
     {

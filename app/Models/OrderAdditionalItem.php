@@ -12,6 +12,6 @@ class OrderAdditionalItem extends Model
 
     protected function casts(): array
     {
-        return ['unit_price' => 'decimal:2', 'subtotal' => 'decimal:2'];
+        return ['configuration' => 'array', 'unit_price' => 'decimal:2', 'subtotal' => 'decimal:2'];
     }
 }

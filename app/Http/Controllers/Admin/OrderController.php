@@ -17,7 +17,7 @@ class OrderController extends Controller
 {
     public function index(Request $request): Response
     {
-        $orders = Order::query()->with('customer:id,name,phone')->when($request->filled('search'), fn ($q) => $q->where(fn ($s) => $s->where('order_number', 'like', '%'.$request->string('search').'%')->orWhere('customer_name_snapshot', 'like', '%'.$request->string('search').'%')))->when($request->filled('status'), fn ($q) => $q->where('status', $request->string('status')))->latest('pickup_at')->paginate(20)->withQueryString();
+        $orders = Order::query()->with('customer:id,name,phone')->when($request->filled('search'), fn ($q) => $q->where(fn ($s) => $s->where('order_number', 'like', '%'.$request->string('search').'%')->orWhere('customer_name_snapshot', 'like', '%'.$request->string('search').'%')))->when($request->filled('status'), fn ($q) => $q->where('status', $request->string('status')))->latest('fulfillment_at')->paginate(20)->withQueryString();
 
         return Inertia::render('admin/orders', ['orders' => $orders, 'filters' => $request->only('search', 'status')]);
     }
@@ -31,20 +31,20 @@ class OrderController extends Controller
 
     public function show(Order $order): Response
     {
-        return Inertia::render('admin/order-detail', ['order' => $order->load(['additionalItems', 'whatsappLogs', 'statusHistories'])]);
+        return Inertia::render('admin/order-detail', ['order' => $order->load(['additionalItems', 'whatsappLogs', 'statusHistories', 'completedBy:id,name', 'paidBy:id,name'])]);
     }
 
     public function complete(Request $request, Order $order, OrderService $service): RedirectResponse
     {
-        $service->complete($order, $request->user()->id, $request->string('notes')->toString() ?: null);
+        $service->complete($order, $request->user()->id);
 
-        return back()->with('success', 'Order ditandai selesai.');
+        return back()->with('success', 'Order ditandai selesai dan pembayaran dikonfirmasi lunas.');
     }
 
     public function destroy(Order $order): RedirectResponse
     {
         $order->delete();
 
-        return to_route('admin.orders.index')->with('success','Order dihapus.');
+        return to_route('admin.orders.index')->with('success', 'Order dihapus.');
     }
 }
