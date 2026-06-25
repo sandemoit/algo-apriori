@@ -17,21 +17,20 @@ class OrderIndexController extends Controller
     public function __invoke(Request $request): Response
     {
         $query = Order::query()
-            ->with(['whatsappLogs:id,order_id,recipient_type,status,sent_at,failed_at'])
             ->when($request->filled('search'), fn (Builder $orders) => $this->search($orders, $request->string('search')->toString()))
             ->when($request->filled('status'), fn (Builder $orders) => $orders->where('status', $request->string('status')->toString()))
             ->when($request->filled('ordered_from'), fn (Builder $orders) => $orders->whereDate('ordered_at', '>=', $request->date('ordered_from')))
             ->when($request->filled('ordered_to'), fn (Builder $orders) => $orders->whereDate('ordered_at', '<=', $request->date('ordered_to')))
             ->when($request->filled('pickup_from'), fn (Builder $orders) => $orders->whereDate('fulfillment_at', '>=', $request->date('pickup_from')))
-            ->when($request->filled('pickup_to'), fn (Builder $orders) => $orders->whereDate('fulfillment_at', '<=', $request->date('pickup_to')))
-            ->when($request->filled('whatsapp_status'), function (Builder $orders) use ($request): void {
-                $orders->whereHas('whatsappLogs', fn (Builder $logs) => $logs->where('status', $request->string('whatsapp_status')->toString()));
-            });
+            ->when($request->filled('pickup_to'), fn (Builder $orders) => $orders->whereDate('fulfillment_at', '<=', $request->date('pickup_to')));
+
+        $today = now()->toDateString();
+        $todayQuery = Order::query()->whereDate('ordered_at', $today);
 
         return Inertia::render('admin/orders', [
             'orders' => $query->latest('fulfillment_at')->paginate(20)->withQueryString(),
-            'filters' => $request->only(['search', 'status', 'ordered_from', 'ordered_to', 'pickup_from', 'pickup_to', 'whatsapp_status']),
-            'summary' => ['total' => (clone $query)->count(), 'completed' => (clone $query)->where('status', OrderStatus::Completed)->count(), 'pending' => (clone $query)->where('status', OrderStatus::Pending)->count()],
+            'filters' => $request->only(['search', 'status', 'ordered_from', 'ordered_to', 'pickup_from', 'pickup_to']),
+            'summary' => ['total' => (clone $todayQuery)->count(), 'completed' => (clone $todayQuery)->where('status', OrderStatus::Completed)->count(), 'pending' => (clone $todayQuery)->where('status', OrderStatus::Pending)->count()],
         ]);
     }
 

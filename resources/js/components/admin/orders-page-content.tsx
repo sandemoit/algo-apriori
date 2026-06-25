@@ -1,10 +1,8 @@
 import { Link, router } from '@inertiajs/react';
-import { Check, MoreHorizontal, Search, Trash2 } from 'lucide-react';
+import { Check, Eye, Search, Trash2 } from 'lucide-react';
 import type { FormEvent } from 'react';
 import { useState } from 'react';
 import { OrderDateRangeFilter } from '@/components/admin/order-date-range-filter';
-import { StatusBadge } from '@/components/status-badge';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -25,11 +23,6 @@ import {
 import { formatRupiah } from '@/lib/formatters';
 import type { OrderStatus } from '@/types/cake-shop';
 
-type WhatsAppLog = {
-    recipient_type: 'customer' | 'admin';
-    status: 'pending' | 'sent' | 'failed';
-};
-
 type Order = {
     id: number;
     order_number: string;
@@ -40,8 +33,6 @@ type Order = {
     fulfillment_method: string;
     grand_total: string;
     status: OrderStatus;
-    payment_status: 'unpaid' | 'paid';
-    whatsapp_logs: WhatsAppLog[];
 };
 
 type PaginationLink = {
@@ -152,7 +143,7 @@ export function OrdersPageContent({ orders, filters, summary }: Props) {
             </section>
 
             <div className="overflow-x-auto rounded-xl border bg-card shadow-sm">
-                <table className="w-full min-w-[1150px] text-sm">
+                <table className="w-full min-w-[860px] text-sm">
                     <thead className="bg-muted/50 text-left text-muted-foreground">
                         <tr>
                             <th className="p-4">Order / Pemesan</th>
@@ -160,10 +151,6 @@ export function OrdersPageContent({ orders, filters, summary }: Props) {
                             <th className="p-4">Jadwal</th>
                             <th className="p-4">Total</th>
                             <th className="p-4">Metode</th>
-                            <th className="p-4">Pembayaran</th>
-                            <th className="p-4">Order</th>
-                            <th className="p-4">WA Pelanggan</th>
-                            <th className="p-4">WA Admin</th>
                             <th className="p-4 text-right">Aksi</th>
                         </tr>
                     </thead>
@@ -174,7 +161,7 @@ export function OrdersPageContent({ orders, filters, summary }: Props) {
                         {orders.data.length === 0 && (
                             <tr>
                                 <td
-                                    colSpan={10}
+                                    colSpan={6}
                                     className="p-12 text-center text-muted-foreground"
                                 >
                                     Tidak ada order dengan filter tersebut.
@@ -202,13 +189,6 @@ export function OrdersPageContent({ orders, filters, summary }: Props) {
 }
 
 function OrderRow({ order }: { order: Order }) {
-    const customer = order.whatsapp_logs.find(
-        (log) => log.recipient_type === 'customer',
-    );
-    const admin = order.whatsapp_logs.find(
-        (log) => log.recipient_type === 'admin',
-    );
-
     return (
         <tr className="border-t hover:bg-muted/30">
             <td className="p-4">
@@ -230,50 +210,34 @@ function OrderRow({ order }: { order: Order }) {
             </td>
             <td className="p-4">{formatMethod(order.fulfillment_method)}</td>
             <td className="p-4">
-                <Badge
-                    variant={
-                        order.payment_status === 'paid'
-                            ? 'default'
-                            : 'secondary'
-                    }
-                >
-                    {order.payment_status === 'paid' ? 'Lunas' : 'Belum lunas'}
-                </Badge>
-            </td>
-            <td className="p-4">
-                <StatusBadge status={order.status} />
-            </td>
-            <td className="p-4">
-                <WhatsappBadge status={customer?.status} />
-            </td>
-            <td className="p-4">
-                <WhatsappBadge status={admin?.status} />
-            </td>
-            <td className="p-4">
-                <div className="flex justify-end gap-1">
+                <div className="flex justify-end gap-2">
                     {order.status === 'pending' && (
                         <CompleteOrderButton orderId={order.id} />
                     )}
                     <Link href={`/admin/orders/${order.id}`}>
                         <Button
-                            size="icon"
-                            variant="ghost"
+                            size="sm"
+                            variant="outline"
                             aria-label="Buka detail order"
                         >
-                            <MoreHorizontal className="size-4" />
+                            <Eye className="size-4" />
+                            Detail
                         </Button>
                     </Link>
-                    <Button
-                        size="icon"
-                        variant="ghost"
-                        aria-label="Hapus order"
-                        onClick={() =>
-                            confirm('Hapus order ini?') &&
-                            router.delete(`/admin/orders/${order.id}`)
-                        }
-                    >
-                        <Trash2 className="size-4" />
-                    </Button>
+                    {order.status !== 'completed' && (
+                        <Button
+                            size="sm"
+                            variant="ghost"
+                            aria-label="Hapus order"
+                            onClick={() =>
+                                confirm('Hapus order ini?') &&
+                                router.delete(`/admin/orders/${order.id}`)
+                            }
+                        >
+                            <Trash2 className="size-4" />
+                            Hapus
+                        </Button>
+                    )}
                 </div>
             </td>
         </tr>
@@ -304,29 +268,6 @@ function SummaryCard({
         </div>
     );
 }
-function WhatsappBadge({ status }: { status?: WhatsAppLog['status'] }) {
-    if (!status) {
-        return <Badge variant="outline">Belum ada</Badge>;
-    }
-
-    const label = { pending: 'Menunggu', sent: 'Terkirim', failed: 'Gagal' }[
-        status
-    ];
-
-    return (
-        <Badge
-            variant={
-                status === 'failed'
-                    ? 'destructive'
-                    : status === 'sent'
-                      ? 'default'
-                      : 'secondary'
-            }
-        >
-            {label}
-        </Badge>
-    );
-}
 function formatDate(value: string): string {
     return new Intl.DateTimeFormat('id-ID', {
         dateStyle: 'medium',
@@ -348,10 +289,11 @@ function CompleteOrderButton({ orderId }: { orderId: number }) {
             <Button
                 aria-label="Selesaikan order dan konfirmasi pembayaran"
                 onClick={() => setOpen(true)}
-                size="icon"
-                variant="ghost"
+                size="sm"
+                variant="default"
             >
                 <Check className="size-4" />
+                Selesaikan
             </Button>
             <Dialog onOpenChange={setOpen} open={open}>
                 <DialogContent>

@@ -1,5 +1,6 @@
 import { useForm } from '@inertiajs/react';
-import { MessageCircleMore, Store, Truck } from 'lucide-react';
+import { CakeSlice, MessageCircleMore, Store, Truck } from 'lucide-react';
+import { useEffect, useMemo } from 'react';
 import type { FormEvent, ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import {
@@ -19,6 +20,8 @@ type Settings = {
     store_phone: string;
     admin_whatsapp: string;
     store_address: string;
+    logo_path?: string | null;
+    logo_url?: string | null;
     customer_order_template: string;
     admin_order_template: string;
     public_order_enabled: boolean;
@@ -26,6 +29,10 @@ type Settings = {
     opening_time: string;
     closing_time: string;
     delivery_fee: string;
+};
+
+type SettingsForm = Settings & {
+    logo: File | null;
 };
 
 type Props = {
@@ -76,11 +83,29 @@ const sampleValues: Record<string, string> = {
 };
 
 export function SettingsPageContent({ settings, sizes, shapes, items }: Props) {
-    const form = useForm(settings);
+    const form = useForm<SettingsForm>({
+        ...settings,
+        logo: null,
+    });
+    const logoPreviewUrl = useMemo(
+        () => (form.data.logo ? URL.createObjectURL(form.data.logo) : null),
+        [form.data.logo],
+    );
+
+    useEffect(() => {
+        return () => {
+            if (logoPreviewUrl) {
+                URL.revokeObjectURL(logoPreviewUrl);
+            }
+        };
+    }, [logoPreviewUrl]);
 
     function submit(event: FormEvent): void {
         event.preventDefault();
-        form.put('/admin/settings');
+        form.transform((data) => ({ ...data, _method: 'put' }));
+        form.post('/admin/settings', {
+            forceFormData: true,
+        });
     }
 
     return (
@@ -115,6 +140,54 @@ export function SettingsPageContent({ settings, sizes, shapes, items }: Props) {
                                     }
                                     value={form.data.store_name}
                                 />
+                            </SettingField>
+                            <SettingField
+                                label="Logo toko"
+                                htmlFor="store-logo"
+                            >
+                                <div className="flex flex-col gap-4 rounded-2xl border bg-muted/20 p-4 sm:flex-row sm:items-center">
+                                    <div className="grid size-20 shrink-0 place-items-center overflow-hidden rounded-2xl bg-gradient-to-br from-rose-500 to-orange-400 text-white">
+                                        {logoPreviewUrl ? (
+                                            <img
+                                                alt="Preview logo baru"
+                                                className="size-full object-cover"
+                                                src={logoPreviewUrl}
+                                            />
+                                        ) : form.data.logo_url ? (
+                                            <img
+                                                alt={`Logo ${form.data.store_name}`}
+                                                className="size-full object-cover"
+                                                src={form.data.logo_url}
+                                            />
+                                        ) : (
+                                            <CakeSlice className="size-8" />
+                                        )}
+                                    </div>
+                                    <div className="min-w-0 flex-1 space-y-2">
+                                        <Input
+                                            accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                                            id="store-logo"
+                                            onChange={(event) =>
+                                                form.setData(
+                                                    'logo',
+                                                    event.target.files?.[0] ??
+                                                        null,
+                                                )
+                                            }
+                                            type="file"
+                                        />
+                                        <p className="text-xs leading-5 text-muted-foreground">
+                                            Format JPG, PNG, WEBP, atau SVG.
+                                            Maksimal 2 MB. Logo dipakai pada
+                                            navbar halaman publik.
+                                        </p>
+                                        {form.errors.logo && (
+                                            <p className="text-sm text-destructive">
+                                                {form.errors.logo}
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
                             </SettingField>
                             <div className="grid gap-5 sm:grid-cols-2">
                                 <SettingField

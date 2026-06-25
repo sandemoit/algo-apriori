@@ -18,6 +18,7 @@ class StoreSetting extends Model
             'store_phone' => '',
             'admin_whatsapp' => '',
             'store_address' => '',
+            'logo_path' => null,
             'customer_order_template' => 'Pesanan {order_number} berhasil dibuat.',
             'admin_order_template' => 'Pesanan baru {order_number}.',
             'public_order_enabled' => true,
