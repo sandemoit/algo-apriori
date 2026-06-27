@@ -84,6 +84,51 @@ class AdminOrderListTest extends TestCase
             );
     }
 
+    public function test_status_filter_does_not_change_summary_breakdown(): void
+    {
+        $this->createOrder(OrderStatus::Pending, '2026-06-25 08:00:00');
+        $this->createOrder(OrderStatus::Completed, '2026-06-24 09:00:00', completedAt: '2026-06-25 10:00:00');
+
+        $this->actingAs($this->user)
+            ->get(route('admin.orders.index', ['status' => OrderStatus::Completed->value]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('admin/orders')
+                ->where('summary.total', 1)
+                ->where('summary.completed', 1)
+                ->where('summary.pending', 1),
+            );
+    }
+
+    public function test_pickup_date_filter_scopes_summary_by_relevant_date_columns(): void
+    {
+        $this->createOrder(OrderStatus::Pending, '2026-06-25 08:00:00', fulfillmentAt: '2026-06-26 10:00:00');
+        $this->createOrder(
+            status: OrderStatus::Completed,
+            orderedAt: '2026-06-24 09:00:00',
+            completedAt: '2026-06-26 11:00:00',
+            fulfillmentAt: '2026-06-27 10:00:00',
+        );
+        $this->createOrder(
+            status: OrderStatus::Pending,
+            orderedAt: '2026-06-25 09:00:00',
+            fulfillmentAt: '2026-06-27 10:00:00',
+        );
+
+        $this->actingAs($this->user)
+            ->get(route('admin.orders.index', [
+                'pickup_from' => '2026-06-26',
+                'pickup_to' => '2026-06-26',
+            ]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('admin/orders')
+                ->where('summary.total', 1)
+                ->where('summary.completed', 1)
+                ->where('summary.pending', 1),
+            );
+    }
+
     public function test_admin_can_upload_store_logo(): void
     {
         Storage::fake('public');
@@ -115,8 +160,12 @@ class AdminOrderListTest extends TestCase
         Storage::disk('public')->assertExists($logoPath);
     }
 
-    private function createOrder(OrderStatus $status, string $orderedAt, ?string $completedAt = null): Order
-    {
+    private function createOrder(
+        OrderStatus $status,
+        string $orderedAt,
+        ?string $completedAt = null,
+        string $fulfillmentAt = '2026-06-26 10:00:00',
+    ): Order {
         $customer = Customer::query()->create([
             'name' => 'Pelanggan '.Str::random(5),
             'phone' => '628'.random_int(100000000, 999999999),
@@ -130,7 +179,7 @@ class AdminOrderListTest extends TestCase
             'cake_shape_id' => $this->shape->id,
             'source' => OrderSource::Public,
             'ordered_at' => $orderedAt,
-            'fulfillment_at' => '2026-06-26 10:00:00',
+            'fulfillment_at' => $fulfillmentAt,
             'fulfillment_method' => FulfillmentMethod::Pickup,
             'customer_name_snapshot' => $customer->name,
             'customer_phone_snapshot' => $customer->phone,

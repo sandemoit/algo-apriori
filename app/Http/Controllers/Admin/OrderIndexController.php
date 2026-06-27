@@ -17,24 +17,62 @@ class OrderIndexController extends Controller
     public function __invoke(Request $request): Response
     {
         $query = Order::query()
-            ->when($request->filled('search'), fn (Builder $orders) => $this->search($orders, $request->string('search')->toString()))
+            ->tap(fn (Builder $orders) => $this->applySharedFilters($orders, $request))
             ->when($request->filled('status'), fn (Builder $orders) => $orders->where('status', $request->string('status')->toString()))
-            ->when($request->filled('ordered_from'), fn (Builder $orders) => $orders->whereDate('ordered_at', '>=', $request->date('ordered_from')))
-            ->when($request->filled('ordered_to'), fn (Builder $orders) => $orders->whereDate('ordered_at', '<=', $request->date('ordered_to')))
-            ->when($request->filled('pickup_from'), fn (Builder $orders) => $orders->whereDate('fulfillment_at', '>=', $request->date('pickup_from')))
-            ->when($request->filled('pickup_to'), fn (Builder $orders) => $orders->whereDate('fulfillment_at', '<=', $request->date('pickup_to')));
+            ->tap(fn (Builder $orders) => $this->applyPickupFilters($orders, $request));
 
         $today = now()->toDateString();
-        $todayOrders = Order::query()->whereDate('ordered_at', $today);
-        $completedToday = Order::query()
+        $summaryOrders = Order::query()
+            ->tap(fn (Builder $orders) => $this->applySharedFilters($orders, $request))
+            ->tap(fn (Builder $orders) => $this->applySummaryDateScope($orders, $request, 'ordered_at', 'fulfillment_at', $today));
+
+        $summaryCompleted = Order::query()
             ->where('status', OrderStatus::Completed)
-            ->whereDate('completed_at', $today);
+            ->tap(fn (Builder $orders) => $this->applySharedFilters($orders, $request))
+            ->tap(fn (Builder $orders) => $this->applySummaryDateScope($orders, $request, 'completed_at', 'completed_at', $today));
 
         return Inertia::render('admin/orders', [
             'orders' => $query->latest('fulfillment_at')->paginate(20)->withQueryString(),
             'filters' => $request->only(['search', 'status', 'ordered_from', 'ordered_to', 'pickup_from', 'pickup_to']),
-            'summary' => ['total' => (clone $todayOrders)->count(), 'completed' => $completedToday->count(), 'pending' => (clone $todayOrders)->where('status', OrderStatus::Pending)->count()],
+            'summary' => ['total' => (clone $summaryOrders)->count(), 'completed' => $summaryCompleted->count(), 'pending' => (clone $summaryOrders)->where('status', OrderStatus::Pending)->count()],
         ]);
+    }
+
+    private function applySharedFilters(Builder $orders, Request $request): void
+    {
+        $orders
+            ->when($request->filled('search'), fn (Builder $query) => $this->search($query, $request->string('search')->toString()))
+            ->when($request->filled('ordered_from'), fn (Builder $query) => $query->whereDate('ordered_at', '>=', $request->date('ordered_from')))
+            ->when($request->filled('ordered_to'), fn (Builder $query) => $query->whereDate('ordered_at', '<=', $request->date('ordered_to')));
+    }
+
+    private function applyPickupFilters(Builder $orders, Request $request): void
+    {
+        $orders
+            ->when($request->filled('pickup_from'), fn (Builder $query) => $query->whereDate('fulfillment_at', '>=', $request->date('pickup_from')))
+            ->when($request->filled('pickup_to'), fn (Builder $query) => $query->whereDate('fulfillment_at', '<=', $request->date('pickup_to')));
+    }
+
+    private function applySummaryDateScope(
+        Builder $orders,
+        Request $request,
+        string $defaultDateColumn,
+        string $pickupFilterDateColumn,
+        string $defaultDate,
+    ): void {
+        if ($request->filled('ordered_from') || $request->filled('ordered_to')) {
+            return;
+        }
+
+        if ($request->filled('pickup_from') || $request->filled('pickup_to')) {
+            $orders
+                ->when($request->filled('pickup_from'), fn (Builder $query) => $query->whereDate($pickupFilterDateColumn, '>=', $request->date('pickup_from')))
+                ->when($request->filled('pickup_to'), fn (Builder $query) => $query->whereDate($pickupFilterDateColumn, '<=', $request->date('pickup_to')));
+
+            return;
+        }
+
+        $orders->whereDate($defaultDateColumn, $defaultDate);
     }
 
     private function search(Builder $orders, string $value): void
