@@ -10,7 +10,10 @@ const links = [
 ];
 
 export function PublicNavbar() {
-    const { store } = usePage().props;
+    const { auth, store } = usePage().props;
+    const sessionAction = auth.user
+        ? { label: 'Dashboard', href: '/admin/dashboard' }
+        : { label: 'Login', href: '/login' };
 
     return (
         <header className="sticky top-0 z-40 border-b border-rose-100/80 bg-white/85 backdrop-blur dark:border-slate-800 dark:bg-slate-950/85">
@@ -43,12 +46,22 @@ export function PublicNavbar() {
                         </Link>
                     ))}
                 </nav>
-                <Link href="/order" className="hidden md:block">
-                    <Button className="bg-rose-600 text-white shadow-lg shadow-rose-200 hover:bg-rose-700 dark:bg-rose-500 dark:shadow-none dark:hover:bg-rose-400">
-                        <Gift className="size-4" />
-                        Pesan sekarang
-                    </Button>
-                </Link>
+                <div className="hidden items-center gap-2 md:flex">
+                    <Link href={sessionAction.href}>
+                        <Button
+                            className="border-rose-200 bg-white/80 text-rose-700 hover:bg-rose-50 dark:border-slate-700 dark:bg-slate-900 dark:text-rose-200 dark:hover:bg-slate-800"
+                            variant="outline"
+                        >
+                            {sessionAction.label}
+                        </Button>
+                    </Link>
+                    <Link href="/order">
+                        <Button className="bg-rose-600 text-white shadow-lg shadow-rose-200 hover:bg-rose-700 dark:bg-rose-500 dark:shadow-none dark:hover:bg-rose-400">
+                            <Gift className="size-4" />
+                            Pesan sekarang
+                        </Button>
+                    </Link>
+                </div>
                 <Sheet>
                     <SheetTrigger asChild className="md:hidden">
                         <Button size="icon" variant="ghost">
@@ -70,6 +83,11 @@ export function PublicNavbar() {
                             <Link href="/order" className="mt-2">
                                 <Button className="w-full bg-rose-600 text-white hover:bg-rose-700">
                                     Pesan sekarang
+                                </Button>
+                            </Link>
+                            <Link href={sessionAction.href}>
+                                <Button className="w-full" variant="outline">
+                                    {sessionAction.label}
                                 </Button>
                             </Link>
                         </div>
